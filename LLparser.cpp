@@ -7,7 +7,7 @@
 
 using namespace std;
 
-enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LEFT_PAREN, RIGHT_PAREN, SEMICOLON, UNKNOWN };
+enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LEFT_PAREN, RIGHT_PAREN, SEMICOLON, UNKNOWN, END_OF_FILE };
 
 int next_token;
 string token_string;
@@ -30,7 +30,7 @@ string getIdent();
 void lexical();
 
 // SyntaxAnalyzer
-void Statements();
+void Statements(); // <statements> -> <statement> | <statement><semicolon><statements>
 void Statement(); // <statement> -> <ident><assignment_op><expression>
 void Expression(); // <expression> -> <term><term_tail>
 void Term_tail(); // <term_tail> -> <add/sub><term><term_tail> | lambda
@@ -41,14 +41,10 @@ void Factor(); // <factor> -> <left_paren><expression><right_paren> | <ident> | 
 
 int main(int argc, char* argv[])
 {
-	if(argc > 1)
+	if (argc > 1)
 		inputString(argv[1]);
 
-	lexical();
 	Statements();
-
-	for (pair<string, int> elem : SymbolTable)
-		cout << elem.first << " " << elem.second << "\n";
 
 	return 0;
 }
@@ -56,11 +52,11 @@ int main(int argc, char* argv[])
 void inputString(string fileName)
 {
 	ifstream file(fileName);
-    string temp;
-	if(file.is_open())
+	string temp;
+	if (file.is_open())
 		while (getline(file, temp))
 			input += temp;
-	cout << input << '\n';
+		
 }
 
 void print_stack()
@@ -77,11 +73,11 @@ void print_stack()
 void advance()
 {
 	pos++;
-	cur_char = (pos < input.size()) ? input[pos] : '\0';
+	cur_char = (pos < input.size()) ? input[pos] : -1;
 }
 void getNonBlank()
 {
-	while (cur_char <= 32)
+	while (cur_char != -1 && cur_char <= 32)
 		advance();
 }
 string getConst()
@@ -97,7 +93,7 @@ string getConst()
 string getIdent()
 {
 	string result = "";
-	while (cur_char && (isalnum(cur_char) || cur_char == '_')) // ����, ����, _
+	while (cur_char && (isalnum(cur_char) || cur_char == '_')) 
 	{
 		result += cur_char;
 		advance();
@@ -108,9 +104,9 @@ void lexical()
 {
 	getNonBlank();
 
-	if (!cur_char) // ��
+	if (cur_char == -1) 
 	{
-		next_token = EOF;
+		next_token = END_OF_FILE;
 		token_string = "";
 	}
 	else if (isdigit(cur_char))
@@ -181,19 +177,34 @@ void lexical()
 		token_string = "";
 	}
 
-	cout << next_token << token_string << "\n";
+	// print lexeme
+	if (next_token == SEMICOLON)
+		cout << "\b" << token_string;
+	else
+		cout << token_string << " ";
 }
 
 void Statements()
 {
-	Statement();
-	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
-	cout << "Result ==> ";
-	// for (auto it : SymbolTable)
-	// 	cout << it.first << ": " << it.second << "; ";
-	// cout << '\n';
-}
+	if (next_token == END_OF_FILE) return;
 
+	lexical();
+	Statement();
+
+	cout << "\n";
+	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
+	idCnt = 0; constCnt = 0; opCnt = 0;
+
+	if (next_token == SEMICOLON)
+		Statements();
+	
+	cout << "Result ==> ";
+	for (auto it : SymbolTable)
+	cout << it.first << ": " << it.second << "; ";
+	cout << '\n';
+
+	exit(0);
+}
 void Statement()
 {
 	if (next_token == IDENT)
@@ -206,7 +217,7 @@ void Statement()
 			lexical();
 			Expression();
 			int value = s.top(); s.pop();
-			SymbolTable.insert(make_pair( name, value ));
+			SymbolTable.insert(make_pair(name, value));
 		}
 		else
 			cout << "ERROR\n";
@@ -290,11 +301,11 @@ void Factor()
 	{
 		lexical();
 		Expression();
-		if (next_token != RIGHT_PAREN) // ��ȣ�� �Ǵ�
+		if (next_token != RIGHT_PAREN) 
 			cout << "ERROR\n";
 		lexical();
 	}
-	else if (next_token == IDENT && SymbolTable.find(token_string) != SymbolTable.end()) // IDENT ���� ���� �Ǵ�
+	else if (next_token == IDENT && SymbolTable.find(token_string) != SymbolTable.end()) 
 	{
 		idCnt++;
 		s.push(SymbolTable[token_string]);
