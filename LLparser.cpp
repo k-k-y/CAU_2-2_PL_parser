@@ -14,10 +14,13 @@ string token_string;
 
 unordered_map<string, int> SymbolTable; // name, value
 stack<int> s;
+int idCnt = 0, constCnt = 0, opCnt = 0;
 
-string input;
+string input = "";
 int pos = -1;
 char cur_char;
+
+void inputString(string);
 
 // LexicalAnalyzer
 void advance();
@@ -27,6 +30,7 @@ string getIdent();
 void lexical();
 
 // SyntaxAnalyzer
+void Statements();
 void Statement(); // <statement> -> <ident><assignment_op><expression>
 void Expression(); // <expression> -> <term><term_tail>
 void Term_tail(); // <term_tail> -> <add/sub><term><term_tail> | lambda
@@ -35,17 +39,28 @@ void Factor_tail(); // <factor_tail> -> <mult/div><factor><factor_tail> | lambda
 void Factor(); // <factor> -> <left_paren><expression><right_paren> | <ident> | <const>
 
 
-int main(void)
+int main(int argc, char* argv[])
 {
-	input = "asd := (1+2*3)-2;";
+	if(argc > 1)
+		inputString(argv[1]);
 
 	lexical();
-	Statement();
+	Statements();
 
 	for (pair<string, int> elem : SymbolTable)
 		cout << elem.first << " " << elem.second << "\n";
 
 	return 0;
+}
+
+void inputString(string fileName)
+{
+	ifstream file(fileName);
+    string temp;
+	if(file.is_open())
+		while (getline(file, temp))
+			input += temp;
+	cout << input << '\n';
 }
 
 void print_stack()
@@ -82,7 +97,7 @@ string getConst()
 string getIdent()
 {
 	string result = "";
-	while (cur_char && (isalnum(cur_char) || cur_char == '_')) // ¹®ÀÚ, ¼ýÀÚ, _
+	while (cur_char && (isalnum(cur_char) || cur_char == '_')) // ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½, _
 	{
 		result += cur_char;
 		advance();
@@ -93,7 +108,7 @@ void lexical()
 {
 	getNonBlank();
 
-	if (!cur_char) // ³¡
+	if (!cur_char) // ï¿½ï¿½
 	{
 		next_token = EOF;
 		token_string = "";
@@ -166,13 +181,24 @@ void lexical()
 		token_string = "";
 	}
 
-	cout <<next_token << token_string << "\n";
+	cout << next_token << token_string << "\n";
+}
+
+void Statements()
+{
+	Statement();
+	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
+	cout << "Result ==> ";
+	// for (auto it : SymbolTable)
+	// 	cout << it.first << ": " << it.second << "; ";
+	// cout << '\n';
 }
 
 void Statement()
 {
 	if (next_token == IDENT)
 	{
+		idCnt++;
 		string name = token_string;
 		lexical();
 		if (next_token == ASSIGNMENT_OP)
@@ -180,7 +206,7 @@ void Statement()
 			lexical();
 			Expression();
 			int value = s.top(); s.pop();
-			SymbolTable.insert({ name, value });
+			SymbolTable.insert(make_pair( name, value ));
 		}
 		else
 			cout << "ERROR\n";
@@ -198,6 +224,7 @@ void Term_tail()
 	int operand1, operand2;
 	if (next_token == ADD_OP)
 	{
+		opCnt++;
 		lexical();
 		Term();
 
@@ -209,6 +236,7 @@ void Term_tail()
 	}
 	else if (next_token == SUB_OP)
 	{
+		opCnt++;
 		lexical();
 		Term();
 
@@ -231,6 +259,7 @@ void Factor_tail()
 	int operand1, operand2;
 	if (next_token == MUL_OP)
 	{
+		opCnt++;
 		lexical();
 		Factor();
 
@@ -242,6 +271,7 @@ void Factor_tail()
 	}
 	else if (next_token == DIV_OP)
 	{
+		opCnt++;
 		lexical();
 		Factor();
 
@@ -260,17 +290,19 @@ void Factor()
 	{
 		lexical();
 		Expression();
-		if (next_token != RIGHT_PAREN) // °ýÈ£½Ö ÆÇ´Ü
+		if (next_token != RIGHT_PAREN) // ï¿½ï¿½È£ï¿½ï¿½ ï¿½Ç´ï¿½
 			cout << "ERROR\n";
 		lexical();
 	}
-	else if (next_token == IDENT && SymbolTable.find(token_string) != SymbolTable.end()) // IDENT Á¤ÀÇ ¿©ºÎ ÆÇ´Ü
+	else if (next_token == IDENT && SymbolTable.find(token_string) != SymbolTable.end()) // IDENT ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½
 	{
+		idCnt++;
 		s.push(SymbolTable[token_string]);
 		lexical();
 	}
 	else if (next_token == CONST)
 	{
+		constCnt++;
 		s.push(stoi(token_string));
 		lexical();
 	}
