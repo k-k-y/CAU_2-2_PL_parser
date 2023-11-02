@@ -1,7 +1,8 @@
 // ERROR1 : 연산자(사칙연산)가 연속해서 나오는 경우
 // ERROR2 : 정의되지 않은 변수(IDENT)를 사용하는 경우
-// ERROR3 : 괄호 쌍이 맞지 않는 경우
-// ERROR4 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
+// ERROR3 : 괄호가 열렸는데 닫히지 않은 경우
+// ERROR4 : Factor 토큰 오류
+// ERROR5 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
 
 #include <iostream>
 #include <cctype>
@@ -15,7 +16,6 @@
 #define RED "\e[0;31m"
 #define PUP "\e[0;35m"
 #define BLUE "\e[0;94m"
-#define REDB "\e[41m"
 
 using namespace std;
 
@@ -215,7 +215,7 @@ void lexical()
 	// print lexeme
 	if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
-	else
+	else if (next_token != END_OF_FILE && next_token != UNKNOWN)
 		cout << token_string << " ";
 	
 }
@@ -231,7 +231,7 @@ void Statements()
 	cout << BLUE "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n" NC;
 	if (errorQue.empty())
 		cout << RED "(OK)\n" NC;
-	while(!errorQue.empty()) // ERROR 출력
+	while (!errorQue.empty()) // ERROR 출력
 	{
 		if (errorQue.front().first == 1)
 		{
@@ -243,8 +243,18 @@ void Statements()
 			cout << RED "(Error) 정의되지 않은 변수(" << errorQue.front().second << ")가 참조됨\n" NC;
 			errorQue.pop();
 		}
+		else if (errorQue.front().first == 3)
+		{
+			cout << RED "(Warning) 괄호쌍의 개수가 맞지 않음. 닫는 괄호 추가\n" NC;
+			errorQue.pop();
+		}
+		else if (errorQue.front().first == 4)
+		{
+			cout << RED "(Warning) Factor 토큰 오류. \"" << errorQue.front().second << "\" 제거\n" NC;
+			errorQue.pop();
+		}
 	}
-
+	
 	idCnt = 0; constCnt = 0; opCnt = 0;
 
 	if (next_token == SEMICOLON)
@@ -367,9 +377,13 @@ void Factor()
 	{
 		lexical();
 		Expression();
-		if (next_token != RIGHT_PAREN) 
-			cout << "ERROR\n";
-		lexical();
+		if (next_token != RIGHT_PAREN)
+		{
+			errorQue.push({3, "parenError"});
+			cout << ")";
+		}
+		else
+			lexical();
 	}
 	else if (next_token == IDENT) 
 	{
@@ -391,6 +405,12 @@ void Factor()
 		s.push({true, stoi(token_string)});
 		lexical();
 	}
+	else if (next_token == END_OF_FILE)
+		return;
 	else
-		cout << "ERROR\n";
+	{
+		errorQue.push({4, token_string});
+		lexical();
+		Factor();
+	}
 }
