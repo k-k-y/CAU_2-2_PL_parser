@@ -4,10 +4,12 @@
 #include <string>
 #include <unordered_map>
 #include <stack>
+#include <queue>
 
 using namespace std;
 
 enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LEFT_PAREN, RIGHT_PAREN, SEMICOLON, UNKNOWN, END_OF_FILE };
+// string tokenArr[12] = {	"", "", ":=", "+", "-", "x", "/", "(", ")", ";", "", "" };
 
 int next_token;
 string token_string;
@@ -15,6 +17,9 @@ string token_string;
 unordered_map<string, int> SymbolTable; // name, value
 stack<int> s;
 int idCnt = 0, constCnt = 0, opCnt = 0;
+
+int errorCode = 0;
+queue<char> errorQue;
 
 string input = "";
 int pos = -1;
@@ -64,8 +69,11 @@ void print_stack()
 	stack<int> temp = s;
 	while (temp.size() > 0)
 	{
-		cout << temp.top() << " ";
-		temp.pop();
+		if(!temp.empty())
+		{
+			cout << temp.top() << " ";
+			temp.pop();
+		}
 	}
 	cout << "\n";
 }
@@ -177,6 +185,21 @@ void lexical()
 		token_string = "";
 	}
 
+	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) //연속된 연산자 검사
+	{
+        while (1)
+		{
+            getNonBlank();
+            if (cur_char == '+' || cur_char == '-' || cur_char == '*' || cur_char == '/')
+			{
+				errorQue.push(cur_char);
+                advance();
+            } 
+			else
+                break;
+        }
+	}
+
 	// print lexeme
 	if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
@@ -186,6 +209,7 @@ void lexical()
 
 void Statements()
 {
+	errorCode = 0;
 	if (next_token == END_OF_FILE) return;
 
 	lexical();
@@ -193,6 +217,11 @@ void Statements()
 
 	cout << "\n";
 	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
+	while(!errorQue.empty())
+	{
+		cout << "(Warning) “중복 연산자(" << errorQue.front() << ") 제거”\n";
+		errorQue.pop();
+	}
 	idCnt = 0; constCnt = 0; opCnt = 0;
 
 	if (next_token == SEMICOLON)
@@ -216,8 +245,11 @@ void Statement()
 		{
 			lexical();
 			Expression();
-			int value = s.top(); s.pop();
-			SymbolTable.insert(make_pair(name, value));
+			if(!s.empty())
+			{
+				int value = s.top(); s.pop();
+				SymbolTable.insert(make_pair(name, value));
+			}
 		}
 		else
 			cout << "ERROR\n";
@@ -238,11 +270,12 @@ void Term_tail()
 		opCnt++;
 		lexical();
 		Term();
-
-		operand2 = s.top(); s.pop();
-		operand1 = s.top(); s.pop();
-		s.push(operand1 + operand2);
-
+		if(!s.empty())
+		{
+			operand2 = s.top(); s.pop();
+			operand1 = s.top(); s.pop();
+			s.push(operand1 + operand2);
+		}
 		Term_tail();
 	}
 	else if (next_token == SUB_OP)
@@ -250,11 +283,12 @@ void Term_tail()
 		opCnt++;
 		lexical();
 		Term();
-
-		operand2 = s.top(); s.pop();
-		operand1 = s.top(); s.pop();
-		s.push(operand1 - operand2);
-
+		if(!s.empty())
+		{
+			operand2 = s.top(); s.pop();
+			operand1 = s.top(); s.pop();
+			s.push(operand1 - operand2);
+		}
 		Term_tail();
 	}
 	else
@@ -273,11 +307,12 @@ void Factor_tail()
 		opCnt++;
 		lexical();
 		Factor();
-
-		operand1 = s.top(); s.pop();
-		operand2 = s.top(); s.pop();
-		s.push(operand1 * operand2);
-
+		if(!s.empty())
+		{
+			operand1 = s.top(); s.pop();
+			operand2 = s.top(); s.pop();
+			s.push(operand1 * operand2);
+		}
 		Factor_tail();
 	}
 	else if (next_token == DIV_OP)
@@ -285,11 +320,12 @@ void Factor_tail()
 		opCnt++;
 		lexical();
 		Factor();
-
-		operand1 = s.top(); s.pop();
-		operand2 = s.top(); s.pop();
-		s.push(operand1 / operand2);
-
+		if(!s.empty())
+		{
+			operand1 = s.top(); s.pop();
+			operand2 = s.top(); s.pop();
+			s.push(operand1 / operand2);
+		}
 		Factor_tail();
 	}
 	else
