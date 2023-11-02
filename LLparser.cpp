@@ -1,3 +1,8 @@
+// ERROR1 : 연산자(사칙연산)가 연속해서 나오는 경우
+// ERROR2 : 정의되지 않은 변수(IDENT)를 사용하는 경우
+// ERROR3 : 괄호 쌍이 맞지 않는 경우
+// ERROR4 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
+
 #include <iostream>
 #include <cctype>
 #include <fstream>
@@ -14,12 +19,11 @@ enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LE
 int next_token;
 string token_string;
 
-unordered_map<string, int> SymbolTable; // name, value
-stack<int> s;
+unordered_map<string, pair<bool, int>> SymbolTable; // name, {isInitial, value}
+stack<pair<bool, int>> s; // 초기화 여부, 값
 int idCnt = 0, constCnt = 0, opCnt = 0;
 
-int errorCode = 0;
-queue<char> errorQue;
+queue<pair<int, string>> errorQue; // errorCode, token_string
 
 string input = "";
 int pos = -1;
@@ -64,20 +68,6 @@ void inputString(string fileName)
 		
 }
 
-void print_stack()
-{
-	stack<int> temp = s;
-	while (temp.size() > 0)
-	{
-		if(!temp.empty())
-		{
-			cout << temp.top() << " ";
-			temp.pop();
-		}
-	}
-	cout << "\n";
-}
-
 void advance()
 {
 	pos++;
@@ -111,7 +101,7 @@ string getIdent()
 void lexical()
 {
 	getNonBlank();
-
+	
 	if (cur_char == -1) 
 	{
 		next_token = END_OF_FILE;
@@ -185,16 +175,32 @@ void lexical()
 		token_string = "";
 	}
 
-	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) //연속된 연산자 검사
+	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) // ERROR1 : 연속된 연산자 검사
 	{
         while (1)
 		{
             getNonBlank();
-            if (cur_char == '+' || cur_char == '-' || cur_char == '*' || cur_char == '/')
+			
+            if (cur_char == '+')
 			{
-				errorQue.push(cur_char);
-                advance();
-            } 
+				errorQue.push({1, "+"});
+				advance();
+			}
+			else if (cur_char == '-')
+			{
+				errorQue.push({1, "-"});
+				advance();
+			}
+			else if (cur_char == '*')
+			{
+				errorQue.push({1, "*"});
+				advance();
+			}
+			else if (cur_char == '/')
+			{
+				errorQue.push({1, "/"});
+				advance();
+			}
 			else
                 break;
         }
@@ -205,11 +211,11 @@ void lexical()
 		cout << "\b" << token_string;
 	else
 		cout << token_string << " ";
+	
 }
 
 void Statements()
 {
-	errorCode = 0;
 	if (next_token == END_OF_FILE) return;
 
 	lexical();
@@ -217,11 +223,22 @@ void Statements()
 
 	cout << "\n";
 	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
-	while(!errorQue.empty())
+
+	while(!errorQue.empty()) // ERROR 출력
 	{
-		cout << "(Warning) “중복 연산자(" << errorQue.front() << ") 제거”\n";
-		errorQue.pop();
+		if (errorQue.front().first == 1)
+		{
+			cout << "(Warning) “중복 연산자(" << errorQue.front().second << ") 제거”\n";
+			errorQue.pop();
+		}
+		else if (errorQue.front().first == 2)
+		{
+			cout << "(Error) 정의되지 않은 변수(" << errorQue.front().second << ")가 참조됨\n";
+			errorQue.pop();
+		}
+		
 	}
+
 	idCnt = 0; constCnt = 0; opCnt = 0;
 
 	if (next_token == SEMICOLON)
@@ -229,7 +246,12 @@ void Statements()
 	
 	cout << "Result ==> ";
 	for (auto it : SymbolTable)
-	cout << it.first << ": " << it.second << "; ";
+	{
+		if (it.second.first == true)
+			cout << it.first << ": " << it.second.second << "; ";
+		else
+			cout << it.first << ": UNKNOWN; ";
+	}
 	cout << '\n';
 
 	exit(0);
@@ -245,9 +267,9 @@ void Statement()
 		{
 			lexical();
 			Expression();
-			if(!s.empty())
+			if (!s.empty())
 			{
-				int value = s.top(); s.pop();
+				pair<bool, int> value = s.top(); s.pop();
 				SymbolTable.insert(make_pair(name, value));
 			}
 		}
@@ -264,7 +286,8 @@ void Expression()
 }
 void Term_tail()
 {
-	int operand1, operand2;
+	pair<bool, int> operand1;
+	pair<bool, int> operand2;
 	if (next_token == ADD_OP)
 	{
 		opCnt++;
@@ -274,7 +297,7 @@ void Term_tail()
 		{
 			operand2 = s.top(); s.pop();
 			operand1 = s.top(); s.pop();
-			s.push(operand1 + operand2);
+			s.push({operand1.first & operand2.first, operand1.second + operand2.second});
 		}
 		Term_tail();
 	}
@@ -287,7 +310,7 @@ void Term_tail()
 		{
 			operand2 = s.top(); s.pop();
 			operand1 = s.top(); s.pop();
-			s.push(operand1 - operand2);
+			s.push({operand1.first & operand2.first, operand1.second - operand2.second});
 		}
 		Term_tail();
 	}
@@ -301,7 +324,8 @@ void Term()
 }
 void Factor_tail()
 {
-	int operand1, operand2;
+	pair<bool, int> operand1;
+	pair<bool, int> operand2;
 	if (next_token == MUL_OP)
 	{
 		opCnt++;
@@ -311,7 +335,7 @@ void Factor_tail()
 		{
 			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
-			s.push(operand1 * operand2);
+			s.push({operand1.first & operand2.first, operand1.second * operand2.second});
 		}
 		Factor_tail();
 	}
@@ -324,7 +348,7 @@ void Factor_tail()
 		{
 			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
-			s.push(operand1 / operand2);
+			s.push({operand1.first & operand2.first, operand1.second / operand2.second});
 		}
 		Factor_tail();
 	}
@@ -341,16 +365,24 @@ void Factor()
 			cout << "ERROR\n";
 		lexical();
 	}
-	else if (next_token == IDENT && SymbolTable.find(token_string) != SymbolTable.end()) 
+	else if (next_token == IDENT) 
 	{
 		idCnt++;
-		s.push(SymbolTable[token_string]);
+		if (SymbolTable.find(token_string) != SymbolTable.end())
+			s.push(SymbolTable[token_string]);
+		else
+		{
+			errorQue.push({2, token_string}); // ERROR2 : 정의하지 않은 변수 참조
+			pair<bool, int> value = {false, 2147483647};
+			SymbolTable.insert(make_pair(token_string, value));
+			s.push(SymbolTable[token_string]);
+		}
 		lexical();
 	}
 	else if (next_token == CONST)
 	{
 		constCnt++;
-		s.push(stoi(token_string));
+		s.push({true, stoi(token_string)});
 		lexical();
 	}
 	else
