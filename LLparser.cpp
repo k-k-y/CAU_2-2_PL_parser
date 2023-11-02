@@ -11,6 +11,12 @@
 #include <stack>
 #include <queue>
 
+#define NC "\e[0m"
+#define RED "\e[0;31m"
+#define PUP "\e[0;35m"
+#define BLUE "\e[0;94m"
+#define REDB "\e[41m"
+
 using namespace std;
 
 enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LEFT_PAREN, RIGHT_PAREN, SEMICOLON, UNKNOWN, END_OF_FILE };
@@ -222,21 +228,21 @@ void Statements()
 	Statement();
 
 	cout << "\n";
-	cout << "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n";
-
+	cout << BLUE "ID: " << idCnt << "; " << "CONST: " << constCnt << "; " << "OP: " << opCnt << ";\n" NC;
+	if (errorQue.empty())
+		cout << RED "(OK)\n" NC;
 	while(!errorQue.empty()) // ERROR 출력
 	{
 		if (errorQue.front().first == 1)
 		{
-			cout << "(Warning) “중복 연산자(" << errorQue.front().second << ") 제거”\n";
+			cout << RED "(Warning) “중복 연산자(" << errorQue.front().second << ") 제거”\n" NC;
 			errorQue.pop();
 		}
 		else if (errorQue.front().first == 2)
 		{
-			cout << "(Error) 정의되지 않은 변수(" << errorQue.front().second << ")가 참조됨\n";
+			cout << RED "(Error) 정의되지 않은 변수(" << errorQue.front().second << ")가 참조됨\n" NC;
 			errorQue.pop();
 		}
-		
 	}
 
 	idCnt = 0; constCnt = 0; opCnt = 0;
@@ -244,7 +250,7 @@ void Statements()
 	if (next_token == SEMICOLON)
 		Statements();
 	
-	cout << "Result ==> ";
+	cout << PUP "Result ==> ";
 	for (auto it : SymbolTable)
 	{
 		if (it.second.first == true)
@@ -252,7 +258,7 @@ void Statements()
 		else
 			cout << it.first << ": UNKNOWN; ";
 	}
-	cout << '\n';
+	cout << "\n" NC;
 
 	exit(0);
 }
