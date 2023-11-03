@@ -3,6 +3,8 @@
 // ERROR3 : 괄호가 열렸는데 닫히지 않은 경우
 // ERROR4 : Factor 토큰 오류
 // ERROR5 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
+// ERROR6 : 대입연산자가 나와야 할 자리에 나오지 않음.
+// ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
 
 #include <iostream>
 #include <cctype>
@@ -25,11 +27,11 @@ enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LE
 int next_token;
 string token_string;
 
-unordered_map<string, pair<bool, int>> SymbolTable; // name, {isInitial, value}
-stack<pair<bool, int>> s; // 초기화 여부, 값
+unordered_map<string, pair<bool, int> > SymbolTable; // name, {isInitial, value}
+stack<pair<bool, int> > s; // 초기화 여부, 값
 int idCnt = 0, constCnt = 0, opCnt = 0;
 
-queue<pair<int, string>> errorQue; // errorCode, token_string
+queue<pair<int, string> > errorQue; // errorCode, token_string
 
 string input = "";
 int pos = -1;
@@ -189,22 +191,22 @@ void lexical()
 			
             if (cur_char == '+')
 			{
-				errorQue.push({1, "+"});
+				errorQue.push(make_pair(1, "+"));
 				advance();
 			}
 			else if (cur_char == '-')
 			{
-				errorQue.push({1, "-"});
+				errorQue.push(make_pair(1, "-"));
 				advance();
 			}
 			else if (cur_char == '*')
 			{
-				errorQue.push({1, "*"});
+				errorQue.push(make_pair(1, "*"));
 				advance();
 			}
 			else if (cur_char == '/')
 			{
-				errorQue.push({1, "/"});
+				errorQue.push(make_pair(1, "/"));
 				advance();
 			}
 			else
@@ -212,12 +214,40 @@ void lexical()
         }
 	}
 
+	if ((next_token == IDENT || next_token == CONST) && !(idCnt == 0 && constCnt == 0)) // ERROR5 : 연속된 피연산자 검사 (대입문이 나오기 전에는 검사하지 않음)
+	{
+		while (1)
+		{
+			string temp = "";
+			getNonBlank();
+
+			if (isalpha(cur_char) || cur_char == '_')
+			{
+				while(cur_char != ' ' && (isalnum(cur_char) || cur_char == '_'))
+				{
+					temp += cur_char;
+					advance();
+				}
+				errorQue.push(make_pair(5, temp));
+			}
+			else if (isdigit(cur_char))
+			{
+				while(cur_char != ' ' && isdigit(cur_char))
+				{
+					temp += cur_char;
+					advance();
+				}
+				errorQue.push(make_pair(5, temp));
+			}
+			else
+				break;
+		}
+	}
 	// print lexeme
 	if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
-	else if (next_token != END_OF_FILE && next_token != UNKNOWN)
+	else if (next_token != END_OF_FILE && next_token != UNKNOWN && next_token != ASSIGNMENT_OP)
 		cout << token_string << " ";
-	
 }
 
 void Statements()
@@ -235,7 +265,7 @@ void Statements()
 	{
 		if (errorQue.front().first == 1)
 		{
-			cout << RED "(Warning) “중복 연산자(" << errorQue.front().second << ") 제거”\n" NC;
+			cout << RED "(Warning) “중복 연산자(" << errorQue.front().second << ") 제거 후 진행”\n" NC;
 			errorQue.pop();
 		}
 		else if (errorQue.front().first == 2)
@@ -250,7 +280,22 @@ void Statements()
 		}
 		else if (errorQue.front().first == 4)
 		{
-			cout << RED "(Warning) Factor 토큰 오류. \"" << errorQue.front().second << "\" 제거\n" NC;
+			cout << RED "(Warning) Factor 토큰 오류. \"" << errorQue.front().second << "\" 제거 후 진행\n" NC;
+			errorQue.pop();
+		}
+		else if (errorQue.front().first == 5)
+		{
+			cout << RED "(Warning) 피연산자가 연속해서 나옴. \"" << errorQue.front().second << "\" 제거 후 진행\n" NC;
+			errorQue.pop();
+		}
+		else if (errorQue.front().first == 6)
+		{
+			cout << RED "(Warning) 대입연산자가 나오지 않음. 추가 후 진행\n" NC;
+			errorQue.pop(); 
+		}
+		else if (errorQue.front().first == 7)
+		{
+			cout << RED "(Warning) 변수가 나오지 않음. \"" << errorQue.front().second << "\" 제거 후 진행\n" NC;
 			errorQue.pop();
 		}
 	}
@@ -272,12 +317,14 @@ void Statements()
 
 	exit(0);
 }
+
 void Statement()
 {
 	if (next_token == IDENT)
 	{
 		idCnt++;
 		string name = token_string;
+		cout << ":= ";
 		lexical();
 		if (next_token == ASSIGNMENT_OP)
 		{
@@ -290,11 +337,29 @@ void Statement()
 			}
 		}
 		else
-			cout << "ERROR\n";
+		{
+			errorQue.push(make_pair(6, ":="));
+
+			Expression();
+			if (!s.empty())
+			{
+				pair<bool, int> value = s.top(); s.pop();
+				SymbolTable.insert(make_pair(name, value));
+			}
+		}
 	}
 	else
-		cout << "ERROR\n";
+	{
+		errorQue.push(make_pair(7, token_string));
+		lexical();
+
+		if (next_token == END_OF_FILE)
+			return;
+
+		Statement();
+	}
 }
+
 void Expression()
 {
 	Term();
@@ -313,7 +378,7 @@ void Term_tail()
 		{
 			operand2 = s.top(); s.pop();
 			operand1 = s.top(); s.pop();
-			s.push({operand1.first & operand2.first, operand1.second + operand2.second});
+			s.push(make_pair(operand1.first & operand2.first, operand1.second + operand2.second));
 		}
 		Term_tail();
 	}
@@ -326,7 +391,7 @@ void Term_tail()
 		{
 			operand2 = s.top(); s.pop();
 			operand1 = s.top(); s.pop();
-			s.push({operand1.first & operand2.first, operand1.second - operand2.second});
+			s.push(make_pair(operand1.first & operand2.first, operand1.second - operand2.second));
 		}
 		Term_tail();
 	}
@@ -351,7 +416,7 @@ void Factor_tail()
 		{
 			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
-			s.push({operand1.first & operand2.first, operand1.second * operand2.second});
+			s.push(make_pair(operand1.first & operand2.first, operand1.second * operand2.second));
 		}
 		Factor_tail();
 	}
@@ -364,7 +429,7 @@ void Factor_tail()
 		{
 			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
-			s.push({operand1.first & operand2.first, operand1.second / operand2.second});
+			s.push(make_pair(operand1.first & operand2.first, operand1.second / operand2.second));
 		}
 		Factor_tail();
 	}
@@ -379,7 +444,7 @@ void Factor()
 		Expression();
 		if (next_token != RIGHT_PAREN)
 		{
-			errorQue.push({3, "parenError"});
+			errorQue.push(make_pair(3, "parenError"));
 			cout << ")";
 		}
 		else
@@ -392,8 +457,8 @@ void Factor()
 			s.push(SymbolTable[token_string]);
 		else
 		{
-			errorQue.push({2, token_string}); // ERROR2 : 정의하지 않은 변수 참조
-			pair<bool, int> value = {false, 2147483647};
+			errorQue.push(make_pair(2, token_string)); // ERROR2: Undefined variable referenced
+			pair<bool, int> value = make_pair(false, 2147483647);
 			SymbolTable.insert(make_pair(token_string, value));
 			s.push(SymbolTable[token_string]);
 		}
@@ -402,14 +467,14 @@ void Factor()
 	else if (next_token == CONST)
 	{
 		constCnt++;
-		s.push({true, stoi(token_string)});
+		s.push(make_pair(true, stoi(token_string)));
 		lexical();
 	}
-	else if (next_token == END_OF_FILE)
+	else if (next_token == END_OF_FILE || next_token == SEMICOLON)
 		return;
 	else
 	{
-		errorQue.push({4, token_string});
+		errorQue.push(make_pair(4, token_string));
 		lexical();
 		Factor();
 	}
