@@ -5,6 +5,7 @@
 // ERROR5 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
 // ERROR6 : 대입연산자가 나와야 할 자리에 나오지 않음.
 // ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
+// ERROR8 : 의미 없는 문장(아무것도 없이 ;만 있는 문장, % # 등 의미없는 문자열로만 이루어진 문장 등)
 
 #include <iostream>
 #include <cctype>
@@ -30,6 +31,7 @@ string token_string;
 unordered_map<string, pair<bool, int> > SymbolTable; // name, {isInitial, value}
 stack<pair<bool, int> > s; // 초기화 여부, 값
 int idCnt = 0, constCnt = 0, opCnt = 0;
+bool inExpr = false;
 
 queue<pair<int, string> > errorQue; // errorCode, token_string
 
@@ -187,6 +189,8 @@ void lexical()
 
 	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) // ERROR1 : 연속된 연산자 검사
 	{
+		if (!inExpr) return;
+
         while (1)
 		{
             getNonBlank();
@@ -245,6 +249,7 @@ void lexical()
 				break;
 		}
 	}
+
 	// print lexeme
 	if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
@@ -300,9 +305,14 @@ void Statements()
 			cout << RED "(Warning) 변수가 나오지 않음. \"" << errorQue.front().second << "\" 제거 후 진행\n" NC;
 			errorQue.pop();
 		}
+		else if (errorQue.front().first == 8)
+		{
+			cout << RED << "(Warning) 의미 없는 문장\n" NC;
+			errorQue.pop();
+		}
 	}
 	
-	idCnt = 0; constCnt = 0; opCnt = 0;
+	idCnt = 0; constCnt = 0; opCnt = 0; inExpr = false;
 
 	if (next_token == SEMICOLON)
 		Statements();
@@ -325,6 +335,11 @@ void Statements()
 
 void Statement()
 {
+	if (next_token == END_OF_FILE || next_token == SEMICOLON) 
+	{
+		errorQue.push(make_pair(8, ""));
+		return;
+	}
 	if (next_token == IDENT)
 	{
 		idCnt++;
@@ -334,6 +349,7 @@ void Statement()
 		if (next_token == ASSIGNMENT_OP)
 		{
 			lexical();
+			inExpr = true;
 			Expression();
 			if (!s.empty())
 			{
@@ -357,9 +373,6 @@ void Statement()
 	{
 		errorQue.push(make_pair(7, token_string));
 		lexical();
-
-		if (next_token == END_OF_FILE)
-			return;
 
 		Statement();
 	}
