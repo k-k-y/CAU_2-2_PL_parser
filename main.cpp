@@ -33,7 +33,7 @@ string token_string;
 unordered_map<string, pair<bool, int> > SymbolTable; // name, {isInitial, value}
 stack<pair<bool, int> > s; // 초기화 여부, 값
 int idCnt = 0, constCnt = 0, opCnt = 0, parenCnt = 0;
-bool inExpr = false; 
+bool isOP = false; 
 
 queue<pair<int, string> > errorQue; // errorCode, token_string
 
@@ -202,7 +202,7 @@ void lexical()
 		return;
 	}
 
-	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && inExpr) // ERROR1 : 연속된 연산자 검사
+	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && isOP == true) // ERROR1 : 연속된 연산자 검사
 	{
         while (1)
 		{
@@ -266,12 +266,14 @@ void lexical()
 	// print lexeme
 	if	((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP)) 
 	{
-		if (inExpr) cout << token_string << " "; // 연산자면 expr 안에 있을때만 출력
+		if (isOP) cout << token_string << " "; // 연산자가 나와야 하는 경우에 나온 것만 출력
 	}
 	else if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
 	else if (next_token == IDENT || next_token == CONST || next_token == LEFT_PAREN || next_token == RIGHT_PAREN)
 		cout << token_string << " ";
+
+	isOP = false;
 }
 
 void Statements()
@@ -345,7 +347,7 @@ void Statements()
 
 	}
 	
-	idCnt = 0; constCnt = 0; opCnt = 0; inExpr = false;
+	idCnt = 0; constCnt = 0; opCnt = 0; isOP = false;
 
 	if (next_token == SEMICOLON)
 		Statements();
@@ -381,7 +383,6 @@ void Statement()
 		if (next_token == ASSIGNMENT_OP)
 		{
 			lexical();
-			inExpr = true;
 			Expression();
 			if (!s.empty())
 			{
@@ -392,7 +393,6 @@ void Statement()
 		else
 		{
 			errorQue.push(make_pair(6, ":="));
-			inExpr = true;
 			Expression();
 			if (!s.empty())
 			{
@@ -420,6 +420,7 @@ void Term_tail()
 	pair<bool, int> operand2;
 	if (next_token == ADD_OP)
 	{
+		isOP = true;
 		opCnt++;
 		lexical();
 		Term();
@@ -433,6 +434,7 @@ void Term_tail()
 	}
 	else if (next_token == SUB_OP)
 	{
+		isOP = true;
 		opCnt++;
 		lexical();
 		Term();
@@ -458,6 +460,7 @@ void Factor_tail()
 	pair<bool, int> operand2;
 	if (next_token == MUL_OP)
 	{
+		isOP = true;
 		opCnt++;
 		lexical();
 		Factor();
@@ -471,6 +474,7 @@ void Factor_tail()
 	}
 	else if (next_token == DIV_OP)
 	{
+		isOP = true;
 		opCnt++;
 		lexical();
 		Factor();
