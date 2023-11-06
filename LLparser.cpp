@@ -6,6 +6,7 @@
 // ERROR6 : 대입연산자가 나와야 할 자리에 나오지 않음.
 // ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
 // ERROR8 : 의미 없는 문장(아무것도 없이 ;만 있는 문장, % # 등 의미없는 문자열로만 이루어진 문장 등)
+// ERROR9 : 0으로 나눎
 
 #include <iostream>
 #include <cctype>
@@ -187,10 +188,8 @@ void lexical()
 		advance();
 	}
 
-	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) // ERROR1 : 연속된 연산자 검사
+	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && inExpr) // ERROR1 : 연속된 연산자 검사
 	{
-		if (!inExpr) return;
-
         while (1)
 		{
             getNonBlank();
@@ -251,9 +250,13 @@ void lexical()
 	}
 
 	// print lexeme
-	if (next_token == SEMICOLON)
+	if	((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP)) 
+	{
+		if (inExpr) cout << token_string << " "; // 연산자면 expr 안에 있을때만 출력
+	}
+	else if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
-	else if (next_token != END_OF_FILE && next_token != UNKNOWN && next_token != ASSIGNMENT_OP)
+	else if (next_token == IDENT || next_token == CONST || next_token == LEFT_PAREN || next_token == RIGHT_PAREN)
 		cout << token_string << " ";
 }
 
@@ -310,6 +313,11 @@ void Statements()
 			cout << RED << "(Warning) 의미 없는 문장\n" NC;
 			errorQue.pop();
 		}
+		else if (errorQue.front().first == 9)
+		{
+			cout << RED << "(ERROR) 0으로 나눎\n" NC;
+			errorQue.pop();
+		}
 	}
 	
 	idCnt = 0; constCnt = 0; opCnt = 0; inExpr = false;
@@ -332,7 +340,6 @@ void Statements()
 
 	exit(0);
 }
-
 void Statement()
 {
 	if (next_token == END_OF_FILE || next_token == SEMICOLON) 
@@ -360,7 +367,7 @@ void Statement()
 		else
 		{
 			errorQue.push(make_pair(6, ":="));
-
+			inExpr = true;
 			Expression();
 			if (!s.empty())
 			{
@@ -377,7 +384,6 @@ void Statement()
 		Statement();
 	}
 }
-
 void Expression()
 {
 	Term();
@@ -432,8 +438,8 @@ void Factor_tail()
 		Factor();
 		if(!s.empty())
 		{
-			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
+			operand1 = s.top(); s.pop();
 			s.push(make_pair(operand1.first & operand2.first, operand1.second * operand2.second));
 		}
 		Factor_tail();
@@ -445,9 +451,16 @@ void Factor_tail()
 		Factor();
 		if(!s.empty())
 		{
-			operand1 = s.top(); s.pop();
 			operand2 = s.top(); s.pop();
-			s.push(make_pair(operand1.first & operand2.first, operand1.second / operand2.second));
+			operand1 = s.top(); s.pop();
+			if (operand2.second != 0)
+				s.push(make_pair(operand1.first & operand2.first, operand1.second / operand2.second));
+			else // 0으로 나누면 unknown으로 설정. 나눗셈 시행 x
+			{
+				errorQue.push(make_pair(9, ""));
+				s.push(make_pair(false, 1));
+			}
+				
 		}
 		Factor_tail();
 	}
