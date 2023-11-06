@@ -7,6 +7,8 @@
 // ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
 // ERROR8 : 의미 없는 문장(아무것도 없이 ;만 있는 문장, % # 등 의미없는 문자열로만 이루어진 문장 등)
 // ERROR9 : 0으로 나눎
+// ERROR10 : 선언하지 않은 토큰이 등장함
+// ERROR11 : 괄호가 열리지 않았는데 닫히는 경우
 
 #include <iostream>
 #include <cctype>
@@ -24,15 +26,14 @@
 using namespace std;
 
 enum TokenType { IDENT, CONST, ASSIGNMENT_OP, ADD_OP, SUB_OP, MUL_OP, DIV_OP, LEFT_PAREN, RIGHT_PAREN, SEMICOLON, UNKNOWN, END_OF_FILE };
-// string tokenArr[12] = {	"", "", ":=", "+", "-", "x", "/", "(", ")", ";", "", "" };
 
 int next_token;
 string token_string;
 
 unordered_map<string, pair<bool, int> > SymbolTable; // name, {isInitial, value}
 stack<pair<bool, int> > s; // 초기화 여부, 값
-int idCnt = 0, constCnt = 0, opCnt = 0;
-bool inExpr = false;
+int idCnt = 0, constCnt = 0, opCnt = 0, parenCnt = 0;
+bool inExpr = false; 
 
 queue<pair<int, string> > errorQue; // errorCode, token_string
 
@@ -172,12 +173,21 @@ void lexical()
 		advance();
 		next_token = LEFT_PAREN;
 		token_string = "(";
+		parenCnt++;
 	}
 	else if (cur_char == ')')
 	{
 		advance();
 		next_token = RIGHT_PAREN;
 		token_string = ")";
+		if (parenCnt <= 0)
+		{
+			errorQue.push(make_pair(11, token_string));
+			lexical();
+			return;
+		}
+		else
+			parenCnt--;
 	}
 	else
 	{
@@ -186,6 +196,10 @@ void lexical()
 		s += cur_char;
 		token_string = s;
 		advance();
+
+		errorQue.push(make_pair(10, token_string));
+		lexical();
+		return;
 	}
 
 	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && inExpr) // ERROR1 : 연속된 연산자 검사
@@ -285,7 +299,7 @@ void Statements()
 		}
 		else if (errorQue.front().first == 3)
 		{
-			cout << RED "(Warning) 괄호쌍의 개수가 맞지 않음. 닫는 괄호 추가\n" NC;
+			cout << RED "(Warning) 괄호가 열린 후 닫히지 않음. \")\" 추가\n" NC;
 			errorQue.pop();
 		}
 		else if (errorQue.front().first == 4)
@@ -310,14 +324,25 @@ void Statements()
 		}
 		else if (errorQue.front().first == 8)
 		{
-			cout << RED << "(Warning) 의미 없는 문장\n" NC;
+			cout << RED "(Error) 의미 없는 문장\n" NC;
 			errorQue.pop();
 		}
 		else if (errorQue.front().first == 9)
 		{
-			cout << RED << "(ERROR) 0으로 나눎\n" NC;
+			cout << RED "(Error) 0으로 나눎\n" NC;
 			errorQue.pop();
 		}
+		else if (errorQue.front().first == 10)
+		{
+			cout << RED "(Warning) 선언하지 않은 토큰 \"" << errorQue.front().second << "\" 제거 후 진행\n" NC;
+			errorQue.pop();
+		}
+		else if (errorQue.front().first == 11)
+		{
+			cout << RED "(Warning) 괄호가 열리지 않았는데 닫힘. \")\" 제거 후 진행\n" NC;
+			errorQue.pop();
+		}
+
 	}
 	
 	idCnt = 0; constCnt = 0; opCnt = 0; inExpr = false;
@@ -464,7 +489,7 @@ void Factor_tail()
 		}
 		Factor_tail();
 	}
-	else
+	else 
 		return;
 }
 void Factor()
@@ -476,7 +501,7 @@ void Factor()
 		if (next_token != RIGHT_PAREN)
 		{
 			errorQue.push(make_pair(3, "parenError"));
-			cout << ")";
+			cout << ") ";
 		}
 		else
 			lexical();
