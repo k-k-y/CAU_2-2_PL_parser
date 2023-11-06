@@ -5,6 +5,7 @@
 // ERROR5 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
 // ERROR6 : 대입연산자가 나와야 할 자리에 나오지 않음.
 // ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
+// ERROR8 : SymbolTable에 변수가 없어서 result가 없음.
 
 #include <iostream>
 #include <cctype>
@@ -75,7 +76,6 @@ void inputString(string fileName)
 			input += temp;
 		
 }
-
 void advance()
 {
 	pos++;
@@ -179,6 +179,7 @@ void lexical()
 	}
 	else
 	{
+		advance();
 		next_token = UNKNOWN;
 		token_string = "";
 	}
@@ -306,13 +307,16 @@ void Statements()
 		Statements();
 	
 	cout << PUP "Result ==> ";
-	for (auto it : SymbolTable)
-	{
-		if (it.second.first == true)
-			cout << it.first << ": " << it.second.second << "; ";
-		else
-			cout << it.first << ": UNKNOWN; ";
-	}
+	if (SymbolTable.size() != 0)
+		for (auto it : SymbolTable)
+		{
+			if (it.second.first == true)
+				cout << it.first << ": " << it.second.second << "; ";
+			else
+				cout << it.first << ": UNKNOWN; ";
+		}
+	else cout << "변수가 없습니다.";
+
 	cout << "\n" NC;
 
 	exit(0);
