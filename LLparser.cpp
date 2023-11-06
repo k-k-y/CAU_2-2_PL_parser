@@ -5,7 +5,6 @@
 // ERROR5 : 피연산자(CONST, IDENT)가 연속해서 나오는 경우
 // ERROR6 : 대입연산자가 나와야 할 자리에 나오지 않음.
 // ERROR7 : Statement 맨 앞에 변수가 나와야 할 자리에 나오지 않음
-// ERROR8 : SymbolTable에 변수가 없어서 result가 없음.
 
 #include <iostream>
 #include <cctype>
@@ -179,9 +178,11 @@ void lexical()
 	}
 	else
 	{
-		advance();
 		next_token = UNKNOWN;
-		token_string = "";
+		string s;
+		s += cur_char;
+		token_string = s;
+		advance();
 	}
 
 	if (next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) // ERROR1 : 연속된 연산자 검사
@@ -337,7 +338,7 @@ void Statement()
 			if (!s.empty())
 			{
 				pair<bool, int> value = s.top(); s.pop();
-				SymbolTable.insert(make_pair(name, value));
+				SymbolTable[name] = value;
 			}
 		}
 		else
@@ -348,7 +349,7 @@ void Statement()
 			if (!s.empty())
 			{
 				pair<bool, int> value = s.top(); s.pop();
-				SymbolTable.insert(make_pair(name, value));
+				SymbolTable[name] = value;
 			}
 		}
 	}
@@ -457,7 +458,7 @@ void Factor()
 	else if (next_token == IDENT) 
 	{
 		idCnt++;
-		if (SymbolTable.find(token_string) != SymbolTable.end())
+		if (SymbolTable.find(token_string) != SymbolTable.end()) // IDENT exists in table
 			s.push(SymbolTable[token_string]);
 		else
 		{
