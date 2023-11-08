@@ -1,0 +1,12 @@
+operand1 := 1 + + * - 3;
+operand2 := (operand3 + 2) * 3;
+operand3 := operand1 % + 8;
+operand4 := % # $ 5;
+operand5 15;
+operand6 = 6;
+operand1 := ) & 3 + 1;
+:= 5 + 3;
+;
+#$%#%^#$;
+operand7 := operand1 / 0;
+operand8 := )) (((operand2 + 1) * 2

@@ -33,8 +33,10 @@ string token_string;
 unordered_map<string, pair<bool, int> > SymbolTable; // name, {isInitial, value}
 stack<pair<bool, int> > s; // 초기화 여부, 값
 int idCnt = 0, constCnt = 0, opCnt = 0, parenCnt = 0;
+
 bool isNEG = false; // 음수인지 양수인지 여부
 bool isOP = false; // 연산자가 나올 자리인지 여부
+bool isIdent = false; // 변수가 나왔는지 아닌지 여부
 
 queue<pair<int, string> > errorQue; // errorCode, token_string
 
@@ -279,14 +281,16 @@ void lexical()
 	}
 
 	// print lexeme
-	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && isOP)
+	if ((next_token == ADD_OP || next_token == SUB_OP || next_token == MUL_OP || next_token == DIV_OP) && isOP && isIdent)
 		cout << token_string << " ";
 	else if (next_token == SEMICOLON)
 		cout << "\b" << token_string;
-	else if (next_token == IDENT || next_token == CONST || next_token == LEFT_PAREN || next_token == RIGHT_PAREN)
+	else if (next_token == IDENT || ((next_token == CONST || next_token == LEFT_PAREN || next_token == RIGHT_PAREN) && isIdent))
 		cout << token_string << " ";
 	
+	
 	isOP = false;
+	isIdent = true;
 }
 
 void Statements()
@@ -360,7 +364,7 @@ void Statements()
 
 	}
 	
-	idCnt = 0; constCnt = 0; opCnt = 0;
+	idCnt = 0; constCnt = 0; opCnt = 0; parenCnt = 0; isIdent = false;
 
 	if (next_token == SEMICOLON)
 		Statements();
@@ -390,6 +394,7 @@ void Statement()
 	if (next_token == IDENT)
 	{
 		idCnt++;
+		isIdent = true;
 		string name = token_string;
 		cout << ":= ";
 		lexical();
@@ -417,6 +422,7 @@ void Statement()
 	else
 	{
 		errorQue.push(make_pair(7, token_string));
+		isIdent = false;
 		lexical();
 
 		Statement();
