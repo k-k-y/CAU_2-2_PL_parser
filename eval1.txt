@@ -1,0 +1,1 @@
+operand1 := -1; operand2 := (-1) * operand1 + 1; operand3 := ))) (1 + 2 + operand2)))
